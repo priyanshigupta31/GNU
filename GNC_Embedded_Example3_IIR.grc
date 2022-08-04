@@ -1,0 +1,265 @@
+options:
+  parameters:
+    author: ''
+    category: Custom
+    cmake_opt: ''
+    comment: ''
+    copyright: ''
+    description: ''
+    gen_cmake: 'On'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: Embedded_Python_Example_IIR_Filter
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run: 'True'
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: ''
+    window_size: 1280, 1024
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [10, 10]
+    rotation: 0
+    state: enabled
+
+blocks:
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: ''
+    value: 32E3
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [200, 28]
+    rotation: 0
+    state: enabled
+- name: analog_noise_source_x_0
+  id: analog_noise_source_x
+  parameters:
+    affinity: ''
+    alias: ''
+    amp: '1'
+    comment: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    noise_type: analog.GR_GAUSSIAN
+    seed: '0'
+    type: float
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [16, 136]
+    rotation: 0
+    state: enabled
+- name: blocks_throttle_0
+  id: blocks_throttle
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    ignoretag: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samples_per_second: samp_rate
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [213, 142]
+    rotation: 0
+    state: enabled
+- name: epy_block_0
+  id: epy_block
+  parameters:
+    _source_code: "\n\"\"\"\nEmbedded Python Blocks:\n\nEach time this file is saved,\
+      \ GRC will instantiate the first class it finds\nto get ports and parameters\
+      \ of your block. The arguments to __init__  will\nbe the parameters. All of\
+      \ them are required to have default values!\n\"\"\"\n\nimport numpy as np\n\
+      from gnuradio import gr\n\n\nclass blk(gr.sync_block):  # other base classes\
+      \ are basic_block, decim_block, interp_block\n    \"\"\"Embedded Python Block\
+      \ example - a simple multiply const\"\"\"\n\n    def __init__(self, example_param=1):\
+      \  # only default arguments here\n        \"\"\"arguments to this function show\
+      \ up as parameters in GRC\"\"\"\n        gr.sync_block.__init__(\n         \
+      \   self,\n            name='Embedded Python Block',  # will show up in GRC\n\
+      \            in_sig=[np.float32],\n            out_sig=[np.float32]\n      \
+      \  )\n        # if an attribute with the same name as a parameter is found,\n\
+      \        # a callback is registered (properties work, too).\n        self.example_param\
+      \ = example_param\n        self.set_history(1)  # Example: The comand set_history(4)\
+      \ appends the previous 4-1=3 items to the input buffer (input_items), while\
+      \ the 4'th item is the current value. Therefore,\n        # input_items[0][3]\
+      \ is the beginning of the current input stream.\n        # input_items[0][2]\
+      \ is one input older than the current input stream.\n        # input_items[0][1]\
+      \ is one input older than input_items[0][2]\n        # input_items[0][0] is\
+      \ one input older than input_items[0][1]\n        self.outputbuffer = [0]  #\
+      \ This is a local array that I define to store old output values. I need to\
+      \ set this up since there is not a set_history function to access old outputs\
+      \ (at least I cannot find such a function in GNU radio).\n        self.feedforward_taps\
+      \ = 1  # feedforward taps of IIR filter\n        self.feedbacktaps = 1.0000,\
+      \ -1  # feedback taps of IIR filter\n\n    def work(self, input_items, output_items):\n\
+      \        # Here I create a new list called output_items_with_history, which\
+      \ appends the previous 3 items to the current output_items. The properties of\
+      \ this new list are as follows:\n        # output_items_with_history[3] is the\
+      \ beginning of the current output stream.\n        # output_items_with_history[2]\
+      \ is one output older than the current output stream.\n        # output_items_with_history[1]\
+      \ is one output older than output_items_with_history[2]\n        # output_items_with_history[0]\
+      \ is one input older than output_items_with_history[1]\n\n        # To create\
+      \ output_items_with_history, I tried doing the following command:\n        #\
+      \ output_items_with_history=self.outputbuffer+output_items[0][:]... but it doesn't\
+      \ work, so I came up with the following non-elegant way to create output_items_with_history:\n\
+      \        output_items_with_history = [0]\n        output_items_with_history.extend(self.outputbuffer)\n\
+      \        output_items_with_history.extend(output_items[0][:])\n        output_items_with_history\
+      \ = output_items_with_history[1:]\n\n        # Implement IIR difference equation\
+      \ to filter. Keep in mind that output_items_with_history[3] is the beginning\
+      \ of the current output stream, and input_items[0][3] is the beginning of the\
+      \ current input stream.\n        for i in range(0, len(output_items_with_history)\
+      \ -2):\n            output_items_with_history[i + 1] = input_items[0][i + 1]\
+      \ * self.feedforward_taps / self.feedbacktaps[0]+ output_items_with_history[i]\
+      \ * self.feedbacktaps[1] / self.feedbacktaps[0]\n\n        output_items[0][:]\
+      \ = output_items_with_history[1:]  # Populate our output_items array\n\n   \
+      \     end_of_the_road = len(output_items[0])  # length of output item vector\n\
+      \        # self.outputbuffer[2] = output_items[0][\n        #     end_of_the_road\
+      \ - 1]  # The last element of the outputbuffer is the last output item\n   \
+      \     # self.outputbuffer[1] = output_items[0][\n        #     end_of_the_road\
+      \ - 2]  # The second to last element of the outputbuffer is the second to last\
+      \ output item\n        self.outputbuffer[0] = output_items[0][\n           \
+      \ end_of_the_road - 1]  # The third to last element of the outputbuffer is the\
+      \ third to last output item\n\n        return len(output_items[0])"
+    affinity: ''
+    alias: ''
+    comment: ''
+    example_param: '1'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+  states:
+    _io_cache: ('Embedded Python Block', 'blk', [('example_param', '1')], [('0', 'float',
+      1)], [('0', 'float', 1)], 'Embedded Python Block example - a simple multiply
+      const', ['example_param'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [368, 68]
+    rotation: 0
+    state: enabled
+- name: iir_filter_xxx_0
+  id: iir_filter_xxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: ''
+    fbtaps: '[1, -1]'
+    fftaps: '[1]'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    oldstyle: 'False'
+    type: ffd
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [355, 197]
+    rotation: 0
+    state: enabled
+- name: qtgui_freq_sink_x_0
+  id: qtgui_freq_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'True'
+    average: '0.05'
+    axislabels: 'True'
+    bw: samp_rate
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: ''
+    ctrlpanel: 'False'
+    fc: '0'
+    fftsize: 1024*4
+    freqhalf: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label: Relative Gain
+    label1: ''
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '""'
+    nconnections: '2'
+    showports: 'True'
+    tr_chan: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_tag: '""'
+    type: float
+    units: dB
+    update_time: '0.10'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    wintype: firdes.WIN_BLACKMAN_hARRIS
+    ymax: '10'
+    ymin: '-140'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [706, 127]
+    rotation: 0
+    state: enabled
+
+connections:
+- [analog_noise_source_x_0, '0', blocks_throttle_0, '0']
+- [blocks_throttle_0, '0', epy_block_0, '0']
+- [blocks_throttle_0, '0', iir_filter_xxx_0, '0']
+- [epy_block_0, '0', qtgui_freq_sink_x_0, '0']
+- [iir_filter_xxx_0, '0', qtgui_freq_sink_x_0, '1']
+
+metadata:
+  file_format: 1
